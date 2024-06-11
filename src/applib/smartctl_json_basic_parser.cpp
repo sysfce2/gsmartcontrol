@@ -24,7 +24,7 @@ Copyright:
 #include "hz/string_algo.h"  // string_*
 #include "hz/string_num.h"  // string_is_numeric, number_to_string
 //#include "hz/debug.h"  // debug_*
-#include "json/json.hpp"
+#include "nlohmann/json.hpp"
 #include "hz/error_container.h"
 
 //#include "smartctl_text_ata_parser.h"
@@ -80,6 +80,21 @@ hz::ExpectedVoid<SmartctlParserError> SmartctlJsonBasicParser::parse_section_bas
 						-> hz::ExpectedValue<StorageProperty, SmartctlParserError>
 				{
 					if (auto jval = get_node_data<std::string>(root_node, "device/type"); jval.has_value()) {
+						StorageProperty p;
+						p.set_name(key, key, displayable_name);
+						p.value = jval.value();
+						p.show_in_ui = false;
+						return p;
+					}
+					return hz::Unexpected(SmartctlParserError::KeyNotFound, std::format("Error getting key {} from JSON data.", key));
+				}
+			},
+
+			{"device/protocol", _("Smartctl Device Protocol"),  // NVMe, ...
+				[](const nlohmann::json& root_node, const std::string& key, const std::string& displayable_name)
+						-> hz::ExpectedValue<StorageProperty, SmartctlParserError>
+				{
+					if (auto jval = get_node_data<std::string>(root_node, "device/protocol"); jval.has_value()) {
 						StorageProperty p;
 						p.set_name(key, key, displayable_name);
 						p.value = jval.value();

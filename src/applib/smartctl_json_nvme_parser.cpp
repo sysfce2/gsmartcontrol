@@ -20,7 +20,7 @@ Copyright:
 #include <vector>
 #include <chrono>
 
-#include "json/json.hpp"
+#include "nlohmann/json.hpp"
 
 #include "storage_property.h"
 #include "hz/debug.h"
@@ -119,6 +119,21 @@ hz::ExpectedVoid<SmartctlParserError> SmartctlJsonNvmeParser::parse_section_info
 						-> hz::ExpectedValue<StorageProperty, SmartctlParserError>
 				{
 					if (auto jval = get_node_data<std::string>(root_node, "device/type"); jval.has_value()) {
+						StorageProperty p;
+						p.set_name(key, key, displayable_name);
+						p.value = jval.value();
+						p.show_in_ui = false;
+						return p;
+					}
+					return hz::Unexpected(SmartctlParserError::KeyNotFound, std::format("Error getting key {} from JSON data.", key));
+				}
+			},
+
+			{"device/protocol", _("Smartctl Device Protocol"),  // NVMe, ...
+				[](const nlohmann::json& root_node, const std::string& key, const std::string& displayable_name)
+						-> hz::ExpectedValue<StorageProperty, SmartctlParserError>
+				{
+					if (auto jval = get_node_data<std::string>(root_node, "device/protocol"); jval.has_value()) {
 						StorageProperty p;
 						p.set_name(key, key, displayable_name);
 						p.value = jval.value();
@@ -368,6 +383,16 @@ hz::ExpectedVoid<SmartctlParserError> SmartctlJsonNvmeParser::parse_section_self
 	using namespace SmartctlJsonParserHelpers;
 
 	bool section_properties_found = false;
+
+	// If nvme_self_test_log is present, the drive supports tests.
+	// Create this property only if supported, so that the UI can hide the tab if not needed.
+	if (get_node_exists(json_root_node, "nvme_self_test_log").value_or(false)) {
+		StorageProperty p;
+		p.set_name("nvme_self_test_log/_exists", "nvme_self_test_log/_exists", _("Self-tests supported"));
+		p.section = StoragePropertySection::SelftestLog;
+		p.value = true;
+		add_property(p);
+	}
 
 	{
 		StorageProperty p;
